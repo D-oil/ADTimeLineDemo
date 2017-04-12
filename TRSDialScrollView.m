@@ -7,7 +7,7 @@
  *                                                 *
  ***************************************************/
 
-#import "TRSDialView.h"
+
 #import "TRSDialScrollView.h"
 
 @interface TRSDialScrollView () <UIScrollViewDelegate> {
@@ -24,7 +24,14 @@
 
 @implementation TRSDialScrollView
 
+- (void)setVideoRanges:(NSArray<TRSDialRange *> *) videoRanges
+{
+    [self.dialView setVideoRanges:videoRanges];
+}
 
+- (void)setEventRanges:(NSArray<TRSDialRange *> *) eventRanges {
+    [self.dialView setEventRanges:eventRanges];
+}
 - (void)commonInit
 {
     _max = 0;
@@ -33,7 +40,7 @@
     // Set the default frame size
     // Don't worry, we will be changing this later
     self.dialView = [[TRSDialView alloc] init];
-    [self.dialView setDialRangeFrom:0 to:1440];
+    [self setDialRangeFrom:0 to:1440];
     UIPinchGestureRecognizer *pinch = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(pinchGesture:)];
     [self.dialView addGestureRecognizer:pinch];
     
@@ -86,25 +93,33 @@
         CGRect dialViewFrame = self.dialView.frame ;
         dialViewFrame.size.height = self.bounds.size.height;
         
-
-        
         [self.dialView setFrame:dialViewFrame];
         [self.scrollView setFrame:self.bounds];
 //        NSLog(@"self.bounds = %@",NSStringFromCGRect(self.bounds));
-        self.scrollView.contentSize = CGSizeMake(self.dialView.frame.size.width, self.bounds.size.height);
+        
+        
+        self.dialView.minorTickLength = self.frame.size.height/ 8;
+        self.dialView.majorTickLength = self.frame.size.height/ 6 ;
+        self.dialView.minorTickDistance = self.frame.size.width / 60;
+        [self setDialRangeFrom:0 to:1440];
         
         [self.dialView setNeedsDisplay];
+        
     }
 }
 
 
 - (void)pinchGesture:(UIPinchGestureRecognizer *)pinch {
     NSLog(@"scale = %f",pinch.scale);
-    if (pinch.scale >= 1) {
-        self.dialView.minorTickDistance = self.dialView.minorTickDistance - 1;
-    } else {
-        self.dialView.minorTickDistance = self.dialView.minorTickDistance + 1;
-    }
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        if (pinch.scale >= 1) {
+            self.dialView.minorTickDistance = self.dialView.minorTickDistance + 3;
+        } else {
+            self.dialView.minorTickDistance = self.dialView.minorTickDistance - 1;
+        }
+    });
+    
 }
 
 #pragma mark - Methods
@@ -358,19 +373,24 @@
 
 - (void)setCurrentValue:(NSInteger)newValue {
     
+    if (newValue >= _max) {
+        return;
+    }
+    
     // Check to make sure the value is within the available range
-    if ((newValue < _min) || (newValue > _max))
+    if ((newValue < _min) || (newValue > _max)) {
         _currentValue = _min;
-    
-    else
+        
+    }
+    else{
         _currentValue = newValue;
-    
+    }
     // Update the content offset based on new value
     CGPoint offset = self.scrollView.contentOffset;
 
     offset.x = (newValue - self.dialView.minimum) * self.dialView.minorTickDistance;
     
-    self.scrollView.contentOffset = offset;
+    [self.scrollView setContentOffset:offset animated:YES] ;
 }
 
 - (NSInteger)currentValue

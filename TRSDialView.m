@@ -9,6 +9,7 @@
 
 #import "TRSDialView.h"
 
+
 NSString * const kTRSDialViewDefaultFont = @"HelveticaNeue"; //大刻度下字体frame
 
 const NSInteger kTRSDialViewDefautLabelFontSize = 12;        //大刻度下字体大小
@@ -28,6 +29,7 @@ typedef NS_ENUM(NSUInteger, lineSide) {
 
 //Dial 刻度
 @interface TRSDialView ()
+
 
 @end
 
@@ -81,17 +83,41 @@ typedef NS_ENUM(NSUInteger, lineSide) {
     //_shadowColor = [UIColor colorWithWhite:1.000 alpha:1.000];
     //_shadowOffset = CGSizeMake(1, 1);
     //_shadowBlur = 0.9f;
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(statusBarOrientationChange:) name:UIApplicationDidChangeStatusBarOrientationNotification object:nil];
+}
+
+- (void)dealloc {
+   
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+/**
+ *  当手机屏幕发生变化时，会回调下面方法
+ */
+- (void)statusBarOrientationChange:(NSNotification *)notification{
+     UIInterfaceOrientation orientation = [[UIApplication sharedApplication] statusBarOrientation];
+
+     if (orientation == UIInterfaceOrientationLandscapeRight || orientation ==UIInterfaceOrientationLandscapeLeft)//
+     {
+//        NSLog(@"home键向右 或向左 %@",NSStringFromCGRect(self.frame) );
+     }
+     if (orientation == UIInterfaceOrientationPortrait)// home键靠下
+     {
+//        NSLog(@"home键靠下 %@",NSStringFromCGRect(self.frame) );
+     }
+}
+
+- (void)layoutSubviews {
 
 }
 
-
-- (void)layoutSubviews {
-    
-    _minorTickLength = self.frame.size.height/ 8;
-    _majorTickLength = self.frame.size.height/ 6 ;
-    _minorTickDistance = self.superview.frame.size.width / 60;
-    [self setDialRangeFrom:self.minimum to:self.maximum];
-
+- (void)setEventRanges:(NSArray<TRSDialRange *> *)eventRanges {
+    _eventRanges = eventRanges;
+    [self setNeedsDisplay];
+}
+- (void)setVideoRanges:(NSArray<TRSDialRange *> *)videoRanges {
+    _videoRanges = videoRanges;
+    [self setNeedsDisplay];
 }
 
 - (void)setDialRangeFrom:(NSInteger)from to:(NSInteger)to {
@@ -107,11 +133,13 @@ typedef NS_ENUM(NSUInteger, lineSide) {
     NSLog(@"frame = %@", NSStringFromCGRect(frame));
     
     self.frame = frame;
+    
+    if ([self.superview isKindOfClass:NSClassFromString(@"UIScrollView")]) {
+        UIScrollView *superView = (UIScrollView *)self.superview;
+        superView.contentSize = CGSizeMake(self.frame.size.width, self.bounds.size.height);
+    }
 }
 
-- (void)updateViewFrame {
-    
-}
 
 #pragma mark - Drawing
 
@@ -197,6 +225,18 @@ typedef NS_ENUM(NSUInteger, lineSide) {
     CGContextStrokePath(context);
 }
 
+- (void)drawRangeColorWithContext:(CGContextRef)context
+                         atPoint:(CGPoint)point
+                       withColor:(UIColor *)color
+                           width:(CGFloat)width
+                          length:(CGFloat)length{
+    
+    // Draw the line
+    CGContextAddRect(context, CGRectMake(point.x, point.y, width, length));
+    CGContextSetFillColorWithColor(context, color.CGColor);
+    CGContextFillPath(context);
+}
+
 - (BOOL)isMajorTick:(NSInteger)x {
     
     NSInteger tick_number = (x - self.leading) / self.minorTickDistance;
@@ -214,7 +254,33 @@ typedef NS_ENUM(NSUInteger, lineSide) {
         self.shadowOffset,
         self.shadowBlur,
         self.shadowColor.CGColor);
-
+    
+    int value = (TopPoint.x - self.leading) / self.minorTickDistance + _minimum;
+    
+    if (self.videoRanges && [self.videoRanges isKindOfClass:NSClassFromString(@"NSArray")]) {
+        for (TRSDialRange *range in self.videoRanges) {
+            if (range.location == value) {
+                [self drawRangeColorWithContext:context
+                                        atPoint:TopPoint
+                                      withColor:[UIColor colorWithRed:23/255.0 green:190/255.0 blue:54/255.0 alpha:0.45]
+                                          width:range.length * self.minorTickDistance
+                                         length:self.frame.size.height];
+            }
+        }
+    }
+    
+    if (self.eventRanges && [self.videoRanges isKindOfClass:NSClassFromString(@"NSArray")]) {
+        for (TRSDialRange *range in self.eventRanges) {
+            if (range.location == value) {
+                [self drawRangeColorWithContext:context
+                                        atPoint:TopPoint
+                                      withColor:[UIColor colorWithRed:244/255.0 green:129/255.0 blue:31/255.0 alpha:0.45]
+                                          width:range.length * self.minorTickDistance
+                                         length:self.frame.size.height];
+            }
+        }
+    }
+    
     if ([self isMajorTick:x]) {
         //上面长线
         [self drawMajorTickWithContext:context
@@ -237,7 +303,7 @@ typedef NS_ENUM(NSUInteger, lineSide) {
         // 2) Divide by the minor ticks to get the major number
         // 3) Add the minimum to get the current value
         //
-        int value = (TopPoint.x - self.leading) / self.minorTickDistance + _minimum;
+        
         if (value % 30 == 0 || value == 0) {
             int hour = value / 60;
             int min = (value - hour *60) ;
@@ -271,6 +337,8 @@ typedef NS_ENUM(NSUInteger, lineSide) {
         // Restore the context
         CGContextRestoreGState(context);
     }
+    
+    
 }
 
 /**
@@ -290,8 +358,7 @@ typedef NS_ENUM(NSUInteger, lineSide) {
 - (void)drawRect:(CGRect)rect
 {
     // Drawing code
-    NSLog(@"frame = %@\n", NSStringFromCGRect(rect));
-    
+   
     CGContextRef context = UIGraphicsGetCurrentContext();
 
     // Fill the background
@@ -320,10 +387,15 @@ typedef NS_ENUM(NSUInteger, lineSide) {
     if (minorTickDistance <= 5 && minorTickDistance >=1) {
         _minorTickDistance = minorTickDistance;
         [self setDialRangeFrom:_minimum to:_maximum];
-        [self setNeedsLayout];
+
     }
     
 }
 
 @end
 
+@implementation TRSDialRange
+
+
+
+@end

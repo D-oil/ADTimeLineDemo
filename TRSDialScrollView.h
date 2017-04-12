@@ -8,8 +8,11 @@
  ***************************************************/
 
 #import <UIKit/UIKit.h>
+#import "TRSDialView.h"
 
 @interface TRSDialScrollView : UIView <UIAppearance>
+
+
 /**
  * The current value in the scroll view
  */
@@ -124,4 +127,6 @@
  */
 - (void)setDialRangeFrom:(NSInteger)from to:(NSInteger)to;
 
+- (void)setVideoRanges:(NSArray<TRSDialRange *> *) videoRanges;
+- (void)setEventRanges:(NSArray<TRSDialRange *> *) eventRanges;
 @end

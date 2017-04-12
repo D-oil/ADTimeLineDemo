@@ -9,10 +9,20 @@
 
 #import <UIKit/UIKit.h>
 
+
+
+@interface TRSDialRange : NSObject <NSObject>
+
+@property (nonatomic,assign) NSUInteger location;
+@property (nonatomic,assign) NSUInteger length;
+@end
+
 @interface TRSDialView : UIView <UIAppearance>
 
-#pragma mark - Methods
+@property (nonatomic,strong) NSArray<TRSDialRange *>* videoRanges;
+@property (nonatomic,strong) NSArray<TRSDialRange *>* eventRanges;
 
+#pragma mark - Methods
 
 /**
  * Method to set the range of values to display
@@ -124,3 +134,5 @@
 @property (assign, nonatomic) CGFloat shadowBlur;
 
 @end
+
+
